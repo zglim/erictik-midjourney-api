@@ -13,6 +13,7 @@
 
 ## 最近更新
 
+- [custom pan](https://github.com/erictik/midjourney-api/blob/main/example/custompan.ts)
 - [换脸](https://github.com/erictik/midjourney-api/blob/main/example/faceswap.ts)
 - [支持 niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-api/blob/main/example/customzoom.ts)
@@ -210,6 +211,7 @@
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
 - [x] [custom zoom](https://github.com/erictik/midjourney-api/blob/main/example/customzoom.ts)
+- [x] [custom pan](https://github.com/erictik/midjourney-api/blob/main/example/custompan.ts)
 - [x] autoload command payload
 
 ---

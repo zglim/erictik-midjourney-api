@@ -3,6 +3,7 @@ import {
   LoadingHandler,
   MJConfig,
   MJConfigParam,
+  MJMessage,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
 import { MidjourneyMessage } from "./discord.message";
@@ -12,6 +13,10 @@ import {
   nextNonce,
   random,
   base64ToBlob,
+  PanDirection,
+  panLabel,
+  panContent,
+  findOptionByLabel,
 } from "./utils";
 import { WsMessage } from "./discord.ws";
 import { faceSwap } from "./face.swap";
@@ -352,6 +357,73 @@ export class Midjourney extends MidjourneyMessage {
       customId,
       content,
       flags,
+      loading,
+    });
+  }
+
+  /**
+   * Press a button on a previous message by its label and run the action
+   * through the shared {@link Custom} pipeline (loading callback + ws wait).
+   *
+   * This is the generic building block for actions whose customId can only
+   * be discovered from a message's `options` (e.g. pan, custom zoom), so
+   * callers no longer have to hand-roll `options.find(...)` + `Custom`.
+   */
+  async CustomByLabel({
+    msg,
+    label,
+    content,
+    loading,
+  }: {
+    msg: MJMessage;
+    label: string;
+    content?: string;
+    loading?: LoadingHandler;
+  }) {
+    const option = findOptionByLabel(msg.options, label);
+    return this.Custom({
+      msgId: <string>msg.id,
+      customId: option.custom,
+      content,
+      flags: msg.flags ?? 0,
+      loading,
+    });
+  }
+
+  /**
+   * Custom Pan: expand an (upscaled) image in a given direction.
+   * Keep remix turned off in your settings for this to work.
+   *
+   * The pan button's customId lives on the source message's `options`, so
+   * pass the message you want to pan from. When `prompt` is provided the
+   * submit content is generated as `<prompt> --pan_<direction> <amount>`;
+   * pass `content` to override the generated content completely.
+   */
+  async Pan({
+    msg,
+    direction,
+    amount = 2,
+    prompt,
+    content,
+    loading,
+  }: {
+    msg: MJMessage;
+    direction: PanDirection;
+    amount?: number;
+    prompt?: string;
+    content?: string;
+    loading?: LoadingHandler;
+  }) {
+    const label = panLabel(direction);
+    const submitContent =
+      content ??
+      (prompt !== undefined
+        ? panContent(prompt, direction, amount)
+        : undefined);
+    return this.CustomByLabel({
+      msg,
+      label,
+      content: submitContent,
       loading,
     });
   }

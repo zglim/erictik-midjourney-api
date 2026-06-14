@@ -12,6 +12,7 @@
   * [variation](getting-started/api-reference/variation.md)
   * [upscale](getting-started/api-reference/upscale.md)
   * [reroll](getting-started/api-reference/reroll.md)
+  * [pan](getting-started/api-reference/pan.md)
   * [blend](getting-started/api-reference/blend.md)
   * [describe](getting-started/api-reference/describe.md)
   * [info](getting-started/api-reference/info.md)

@@ -13,6 +13,7 @@ English / [中文文档](README_zh.md)
 
 ## What's new
 
+- [custom pan](https://github.com/erictik/midjourney-client/blob/main/example/custompan.ts)
 - [face swap](https://github.com/erictik/midjourney-client/blob/main/example/faceswap.ts)
 - [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
@@ -221,6 +222,48 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+4. Custom Pan
+
+   `Pan` expands an (upscaled) image in a direction. The pan button only
+   exists on the message's `options`, so pass the message you want to pan
+   from — no need to dig through `options` by hand. Keep remix turned off in
+   your settings for this to work.
+
+   ```typescript
+   // Upscale gives you a message that carries the ⬅️ ⬆️ ⬇️ ➡️ pan buttons
+   const Upscale = await client.Upscale({
+     index: 1,
+     msgId: <string>Imagine.id,
+     hash: <string>Imagine.hash,
+     flags: Imagine.flags,
+   });
+   if (!Upscale) {
+     return;
+   }
+   // direction: "left" | "right" | "up" | "down"
+   const PanRight = await client.Pan({
+     msg: Upscale,
+     direction: "right",
+     amount: 2,
+     prompt, // submit content becomes `${prompt} --pan_right 2`
+     loading: (uri: string, progress: string) => {
+       console.log("loading", uri, "progress", progress);
+     },
+   });
+   console.log(PanRight);
+   ```
+
+   Pressing any button that is only reachable from a message's `options`
+   (custom zoom, pan, …) is also exposed generically via `CustomByLabel`:
+
+   ```typescript
+   const CustomZoom = await client.CustomByLabel({
+     msg: Upscale,
+     label: "Custom Zoom",
+     content: `${prompt} --zoom 2`,
+   });
+   ```
+
 
 
 ## route-map
@@ -237,6 +280,7 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [x] [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
+- [x] [custom pan](https://github.com/erictik/midjourney-client/blob/main/example/custompan.ts)
 - [x] autoload command payload
 
 ---

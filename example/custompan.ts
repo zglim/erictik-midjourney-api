@@ -31,32 +31,12 @@ async function main() {
     console.log("no message");
     return;
   }
-  //U1 U2 U3 U4 V1 V2 V3 V4  "Vary (Strong)" ...
-  const V1CustomID = Imagine.options?.find((o) => o.label === "V1")?.custom;
-  if (!V1CustomID) {
-    console.log("no V1");
-    return;
-  }
-  // Varition V1
-  const Varition = await client.Custom({
+  // Upscale U1 (pan buttons live on an upscaled image)
+  const Upscale = await client.Upscale({
+    index: 1,
     msgId: <string>Imagine.id,
+    hash: <string>Imagine.hash,
     flags: Imagine.flags,
-    customId: V1CustomID,
-    loading: (uri: string, progress: string) => {
-      console.log("loading", uri, "progress", progress);
-    },
-  });
-  console.log(Varition);
-  const U1CustomID = Imagine.options?.find((o) => o.label === "U1")?.custom;
-  if (!U1CustomID) {
-    console.log("no U1");
-    return;
-  }
-  // Upscale U1
-  const Upscale = await client.Custom({
-    msgId: <string>Imagine.id,
-    flags: Imagine.flags,
-    customId: U1CustomID,
     loading: (uri: string, progress: string) => {
       console.log("loading", uri, "progress", progress);
     },
@@ -66,17 +46,13 @@ async function main() {
     return;
   }
   console.log(Upscale);
-  const panright = Upscale?.options?.find((o) => o.label === "➡️"); // keep remix turned off in your settings for this to work
-  if (!panright) {
-    console.log("no panright");
-    return;
-  }
-  // Custom Pan
-  const CustomPanRight = await client.Custom({
-    msgId: <string>Upscale.id,
-    flags: Upscale.flags,
-    content: `${prompt} --pan_right 2`,
-    customId: panright.custom,
+  // Custom Pan — high level API, no need to dig through `options` by hand.
+  // direction: "left" | "right" | "up" | "down"
+  const CustomPanRight = await client.Pan({
+    msg: Upscale,
+    direction: "right",
+    amount: 2,
+    prompt, // submit content becomes `${prompt} --pan_right 2`
     loading: (uri: string, progress: string) => {
       console.log("loading", uri, "progress", progress);
     },
