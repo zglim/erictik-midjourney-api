@@ -13,6 +13,7 @@
   * [upscale](getting-started/api-reference/upscale.md)
   * [reroll](getting-started/api-reference/reroll.md)
   * [blend](getting-started/api-reference/blend.md)
+  * [custom-pan](getting-started/api-reference/custom-pan.md)
   * [describe](getting-started/api-reference/describe.md)
   * [info](getting-started/api-reference/info.md)
   * [fast](getting-started/api-reference/fast.md)

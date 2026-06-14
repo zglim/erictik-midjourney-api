@@ -1,5 +1,5 @@
 import { Snowyflake, Epoch } from "snowyflake";
-import { MJInfo, MJOptions } from "../interfaces";
+import { MJInfo, MJOptions, PanDirection } from "../interfaces";
 
 export const sleep = async (ms: number): Promise<void> =>
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -172,4 +172,64 @@ export async function base64ToBlob(base64Image: string): Promise<Blob> {
 
   // 使用 Uint8Array 创建 Blob 对象
   return new Blob([uint8Array], { type: "image/png" }); // 替换为相应的 MIME 类型
+}
+
+/**
+ * Map of pan direction to the emoji label used on Midjourney buttons.
+ */
+export const PAN_DIRECTION_LABEL: Record<PanDirection, string> = {
+  left: "\u2b05\ufe0f",   // ⬅️
+  right: "\u27a1\ufe0f",  // ➡️
+  up: "\u2b06\ufe0f",     // ⬆️
+  down: "\u2b07\ufe0f",   // ⬇️
+};
+
+/**
+ * Map of pan direction to the --pan_<dir> CLI flag used in prompt content.
+ */
+export const PAN_DIRECTION_FLAG: Record<PanDirection, string> = {
+  left: "pan_left",
+  right: "pan_right",
+  up: "pan_up",
+  down: "pan_down",
+};
+
+const VALID_PAN_DIRECTIONS: PanDirection[] = ["left", "right", "up", "down"];
+
+/**
+ * Validate that a given string is a valid PanDirection.
+ */
+export function isValidPanDirection(direction: string): direction is PanDirection {
+  return VALID_PAN_DIRECTIONS.includes(direction as PanDirection);
+}
+
+/**
+ * Build the content string for a custom pan operation.
+ * E.g. "a cat --pan_right 2"
+ */
+export function buildPanContent(
+  prompt: string,
+  direction: PanDirection,
+  amount: number = 2
+): string {
+  if (!isValidPanDirection(direction)) {
+    throw new Error(
+      `Invalid pan direction "${direction}". Must be one of: ${VALID_PAN_DIRECTIONS.join(", ")}`
+    );
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error(`Invalid pan amount "${amount}". Must be a positive number.`);
+  }
+  return `${prompt} --${PAN_DIRECTION_FLAG[direction]} ${amount}`;
+}
+
+/**
+ * Find an option by label from a list of MJOptions.
+ * Returns undefined if not found.
+ */
+export function findOptionByLabel(
+  options: MJOptions[] | undefined,
+  label: string
+): MJOptions | undefined {
+  return options?.find((o) => o.label === label);
 }

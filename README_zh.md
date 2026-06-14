@@ -13,6 +13,7 @@
 
 ## 最近更新
 
+- [custom pan](https://github.com/erictik/midjourney-api/blob/main/example/custompan.ts)
 - [换脸](https://github.com/erictik/midjourney-api/blob/main/example/faceswap.ts)
 - [支持 niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-api/blob/main/example/customzoom.ts)
@@ -199,6 +200,7 @@
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
+- [x] [`custom pan`](https://github.com/erictik/midjourney-api/blob/main/example/custompan.ts)
 - [x] `/info`
 - [x] `/fast ` and `/relax `
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-api/blob/main/example/prefer-remix.ts)

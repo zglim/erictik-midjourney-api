@@ -66,3 +66,28 @@ export interface MJShorten {
   options: MJOptions[];
   prompts: string[];
 }
+
+/**
+ * Supported pan directions for CustomPan.
+ */
+export type PanDirection = "left" | "right" | "up" | "down";
+
+/**
+ * Parameters for the CustomPan high-level API.
+ */
+export interface CustomPanParam {
+  /** The message ID of the upscaled image to pan from. */
+  msgId: string;
+  /** Message flags from the source message. */
+  flags: number;
+  /** Direction to pan the image. */
+  direction: PanDirection;
+  /** Pan amount / multiplier (default: 2). */
+  amount?: number;
+  /** The prompt to use; defaults to the original prompt if omitted. */
+  prompt?: string;
+  /** Options from the source message (used to find the pan button). */
+  options?: MJOptions[];
+  /** Loading callback. */
+  loading?: LoadingHandler;
+}

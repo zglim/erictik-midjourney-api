@@ -13,6 +13,7 @@ English / [中文文档](README_zh.md)
 
 ## What's new
 
+- [custom pan](https://github.com/erictik/midjourney-client/blob/main/example/custompan.ts)
 - [face swap](https://github.com/erictik/midjourney-client/blob/main/example/faceswap.ts)
 - [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
@@ -226,6 +227,7 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
+- [x] [`custom pan`](https://github.com/erictik/midjourney-client/blob/main/example/custompan.ts)
 - [x] `/info`
 - [x] `/fast ` and `/relax `
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts)

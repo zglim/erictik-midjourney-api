@@ -3,6 +3,9 @@ import {
   LoadingHandler,
   MJConfig,
   MJConfigParam,
+  MJOptions,
+  PanDirection,
+  CustomPanParam,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
 import { MidjourneyMessage } from "./discord.message";
@@ -12,6 +15,10 @@ import {
   nextNonce,
   random,
   base64ToBlob,
+  PAN_DIRECTION_LABEL,
+  isValidPanDirection,
+  buildPanContent,
+  findOptionByLabel,
 } from "./utils";
 import { WsMessage } from "./discord.ws";
 import { faceSwap } from "./face.swap";
@@ -315,6 +322,99 @@ export class Midjourney extends MidjourneyMessage {
       throw new Error(`content is required`);
     }
     return await this.WaitMessage(content, loading);
+  }
+
+  /**
+   * Click any button on a message by its option label.
+   *
+   * This is a generic helper for "button-based" secondary operations
+   * (pan, zoom, vary, etc.) that are exposed via message options.
+   * It finds the matching option, then delegates to `Custom`.
+   */
+  async CustomButton({
+    msgId,
+    flags,
+    label,
+    options,
+    content,
+    loading,
+  }: {
+    /** The message ID to act on. */
+    msgId: string;
+    /** Message flags from the source message. */
+    flags: number;
+    /** The button label to find (e.g. "➡️", "Custom Zoom", "Vary (Strong)"). */
+    label: string;
+    /** Options array from the source message. */
+    options?: MJOptions[];
+    /** Optional content to pass (for operations that require a prompt). */
+    content?: string;
+    /** Loading callback. */
+    loading?: LoadingHandler;
+  }) {
+    const option = findOptionByLabel(options, label);
+    if (!option) {
+      throw new Error(
+        `Button "${label}" not found in message options. ` +
+          `Available: ${(options || []).map((o) => o.label).join(", ")}`
+      );
+    }
+    return this.Custom({
+      msgId,
+      customId: option.custom,
+      content,
+      flags,
+      loading,
+    });
+  }
+
+  /**
+   * Custom Pan — pan (extend) an upscaled image in a given direction.
+   *
+   * This is a high-level API that:
+   * 1. Validates the direction
+   * 2. Finds the correct pan button (⬅️⬆️⬇️➡️) in the message options
+   * 3. Builds the content string with the appropriate --pan_<dir> flag
+   * 4. Delegates to `Custom` for the actual API call + WebSocket handling
+   *
+   * Requires `Ws: true` in config and the source message to have pan buttons
+   * (typically available after an upscale).
+   * Keep remix mode turned off in your settings for this to work.
+   */
+  async CustomPan({
+    msgId,
+    flags,
+    direction,
+    amount = 2,
+    prompt = "",
+    options,
+    loading,
+  }: CustomPanParam) {
+    if (!isValidPanDirection(direction)) {
+      throw new Error(
+        `Invalid pan direction "${direction}". Must be one of: left, right, up, down`
+      );
+    }
+
+    const label = PAN_DIRECTION_LABEL[direction];
+    const option = findOptionByLabel(options, label);
+    if (!option) {
+      throw new Error(
+        `Pan button "${label}" (${direction}) not found in message options. ` +
+          `Make sure the source message has pan buttons (usually available after upscale). ` +
+          `Available: ${(options || []).map((o) => o.label).join(", ")}`
+      );
+    }
+
+    const content = buildPanContent(prompt, direction, amount);
+
+    return this.Custom({
+      msgId,
+      customId: option.custom,
+      content,
+      flags,
+      loading,
+    });
   }
 
   async ZoomOut({
