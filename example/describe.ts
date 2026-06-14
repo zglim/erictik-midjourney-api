@@ -3,6 +3,9 @@ import { Midjourney } from "../src";
 /**
  *
  * a simple example of using the describe api
+ *
+ * `Describe` accepts any ImageSource: URL, local file path, Blob, or Buffer.
+ * See also: describe-local.ts, describe-buffer.ts
  * ```
  * npx tsx example/describe.ts
  * ```

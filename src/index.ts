@@ -7,3 +7,4 @@ export * from "./command";
 export * from "./verify.human";
 export * from "./banned.words";
 export * from "./face.swap";
+export * from "./image-source";

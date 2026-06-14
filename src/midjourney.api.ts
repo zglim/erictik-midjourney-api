@@ -9,6 +9,11 @@ import {
   UploadParam,
   UploadSlot,
 } from "./interfaces";
+import {
+  ImageSource,
+  resolveImageSource,
+  validateResolvedImage,
+} from "./image-source";
 
 import { nextNonce, sleep } from "./utils";
 import { Command } from "./command";
@@ -330,52 +335,68 @@ export class MidjourneyApi extends Command {
   }
 
   /**
+   * Unified image upload: accepts URL, local path, Blob or Buffer and
+   * returns a {@link DiscordImage} ready for Discord API payloads.
    *
-   * @param fileUrl http file path
-   * @returns
+   * This is the single entry-point that all image-consuming features
+   * (Describe, FaceSwap, Blend …) should delegate to.
    */
-  async UploadImageByUri(fileUrl: string) {
-    const response = await this.config.fetch(fileUrl);
-    const fileData = await response.arrayBuffer();
-    const mimeType = response.headers.get("content-type");
-    const filename = fileUrl.split("/").pop() || "image.png";
+  async uploadImage(source: ImageSource): Promise<DiscordImage> {
+    const resolved = await resolveImageSource(source, this.config.fetch);
+    validateResolvedImage(resolved);
+    const { data: fileData, mimeType, filename } = resolved;
     const file_size = fileData.byteLength;
-    if (!mimeType) {
-      throw new Error("Unknown mime type");
-    }
     const { attachments } = await this.attachments({
       filename,
       file_size,
       id: this.UpId++,
     });
-    const UploadSlot = attachments[0];
-    await this.uploadImage(UploadSlot, fileData, mimeType);
+    const slot = attachments[0];
+    await this.uploadImageToSlot(slot, fileData, mimeType);
     const resp: DiscordImage = {
-      id: UploadSlot.id,
-      filename: UploadSlot.upload_filename.split("/").pop() || "image.png",
-      upload_filename: UploadSlot.upload_filename,
+      id: slot.id,
+      filename: slot.upload_filename.split("/").pop() || filename,
+      upload_filename: slot.upload_filename,
     };
     return resp;
   }
 
-  async UploadImageByBole(blob: Blob, filename = nextNonce() + ".png") {
-    const fileData = await blob.arrayBuffer();
-    const mimeType = blob.type;
-    const file_size = fileData.byteLength;
-    if (!mimeType) {
-      throw new Error("Unknown mime type");
+  /**
+   * @deprecated Use `uploadImage(source)` instead. Kept for backward compatibility.
+   * @param fileUrl http file path
+   * @returns
+   */
+  async UploadImageByUri(fileUrl: string): Promise<DiscordImage> {
+    return this.uploadImage(fileUrl);
+  }
+
+  /**
+   * @deprecated Use `uploadImage(source)` instead. Kept for backward compatibility.
+   */
+  async UploadImageByBole(
+    blob: Blob,
+    filename?: string
+  ): Promise<DiscordImage> {
+    // If a custom filename was provided, we still go through the unified
+    // pipeline. We resolve the blob then override the resolved filename.
+    const resolved = await resolveImageSource(blob, this.config.fetch);
+    if (filename) {
+      resolved.filename = filename;
     }
+    validateResolvedImage(resolved);
+    const { data: fileData, mimeType } = resolved;
+    const file_size = fileData.byteLength;
     const { attachments } = await this.attachments({
-      filename,
+      filename: resolved.filename,
       file_size,
       id: this.UpId++,
     });
-    const UploadSlot = attachments[0];
-    await this.uploadImage(UploadSlot, fileData, mimeType);
+    const slot = attachments[0];
+    await this.uploadImageToSlot(slot, fileData, mimeType);
     const resp: DiscordImage = {
-      id: UploadSlot.id,
-      filename: UploadSlot.upload_filename.split("/").pop() || "image.png",
-      upload_filename: UploadSlot.upload_filename,
+      id: slot.id,
+      filename: slot.upload_filename.split("/").pop() || resolved.filename,
+      upload_filename: slot.upload_filename,
     };
     return resp;
   }
@@ -409,7 +430,7 @@ export class MidjourneyApi extends Command {
     throw new Error(error);
   }
 
-  private async uploadImage(
+  private async uploadImageToSlot(
     slot: UploadSlot,
     data: ArrayBuffer,
     contentType: string
@@ -423,7 +444,7 @@ export class MidjourneyApi extends Command {
     });
     if (!response.ok) {
       throw new Error(
-        `uploadImage return ${response.status} ${
+        `uploadImageToSlot return ${response.status} ${
           response.statusText
         } ${await response.text()}`
       );

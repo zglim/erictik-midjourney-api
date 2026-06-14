@@ -221,6 +221,57 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+4. Describe & Face Swap with unified image input
+
+   All image-consuming methods (`Describe`, `FaceSwap`, etc.) accept a
+   unified `ImageSource` type — you no longer need separate API methods
+   for URL vs Blob vs local file.
+
+   **Supported input types:**
+   - **Remote URL** — any `http://` or `https://` string
+   - **Local file path** — any string that is not a URL
+   - **Blob** — browser or Node.js 18+ Blob
+   - **Buffer** — Node.js Buffer
+
+   ```typescript
+   import { Midjourney } from "midjourney";
+   import * as fs from "fs";
+
+   const client = new Midjourney({
+     ServerId: process.env.SERVER_ID,
+     ChannelId: process.env.CHANNEL_ID,
+     SalaiToken: process.env.SALAI_TOKEN,
+     Ws: true,
+   });
+   await client.Connect();
+
+   // Describe from a remote URL
+   const r1 = await client.Describe(
+     "https://cdn.discordapp.com/attachments/.../photo.png"
+   );
+
+   // Describe from a local file path
+   const r2 = await client.Describe("./images/photo.png");
+
+   // Describe from a Buffer
+   const buf = fs.readFileSync("./images/photo.png");
+   const r3 = await client.Describe(buf);
+
+   // Describe from a Blob
+   const blob = new Blob([buf], { type: "image/png" });
+   const r4 = await client.Describe(blob);
+
+   // FaceSwap also accepts any ImageSource for both arguments
+   const swap = await client.FaceSwap(
+     "./images/target.png",  // local file
+     "https://example.com/source.jpg"  // remote URL
+   );
+   ```
+
+   > **Backward compatibility:** The older `DescribeByBlob()` and
+   > `UploadImageByUri()` / `UploadImageByBole()` methods are still
+   > available and internally delegate to the unified pipeline.
+
 
 
 ## route-map

@@ -13,6 +13,7 @@ import {
   random,
   base64ToBlob,
 } from "./utils";
+import { ImageSource, resolveImageSource } from "./image-source";
 import { WsMessage } from "./discord.ws";
 import { faceSwap } from "./face.swap";
 export class Midjourney extends MidjourneyMessage {
@@ -155,10 +156,18 @@ export class Midjourney extends MidjourneyMessage {
     }
     return wsClient.waitContent("prefer-remix");
   }
-  async Describe(imgUri: string) {
+  /**
+   * Describe an image using any supported input type.
+   *
+   * @param source  URL string, local file path, Blob, or Buffer
+   */
+  async Describe(source: ImageSource) {
+    if (source === null || source === undefined) {
+      throw new Error("Describe: image source is required");
+    }
     const wsClient = await this.getWsClient();
     const nonce = nextNonce();
-    const DcImage = await this.MJApi.UploadImageByUri(imgUri);
+    const DcImage = await this.MJApi.uploadImage(source);
     this.log(`Describe`, DcImage);
     const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
     if (httpStatus !== 204) {
@@ -166,16 +175,12 @@ export class Midjourney extends MidjourneyMessage {
     }
     return wsClient.waitDescribe(nonce);
   }
+
+  /**
+   * @deprecated Use `Describe(source)` instead. Kept for backward compatibility.
+   */
   async DescribeByBlob(blob: Blob) {
-    const wsClient = await this.getWsClient();
-    const nonce = nextNonce();
-    const DcImage = await this.MJApi.UploadImageByBole(blob);
-    this.log(`Describe`, DcImage);
-    const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
-    if (httpStatus !== 204) {
-      throw new Error(`DescribeApi failed with status ${httpStatus}`);
-    }
-    return wsClient.waitDescribe(nonce);
+    return this.Describe(blob);
   }
 
   async Shorten(prompt: string) {
@@ -378,15 +383,39 @@ export class Midjourney extends MidjourneyMessage {
     });
   }
 
-  async FaceSwap(target: string, source: string) {
+  /**
+   * Face swap between two images.
+   *
+   * @param target  The target face image (URL, local path, Blob, or Buffer)
+   * @param source  The source face image (URL, local path, Blob, or Buffer)
+   */
+  async FaceSwap(target: ImageSource, source: ImageSource) {
+    if (target === null || target === undefined) {
+      throw new Error("FaceSwap: target image is required");
+    }
+    if (source === null || source === undefined) {
+      throw new Error("FaceSwap: source image is required");
+    }
     const wsClient = await this.getWsClient();
+
+    // Resolve both image sources into Blobs for the face-swap Gradio API
+    const [resolvedTarget, resolvedSource] = await Promise.all([
+      resolveImageSource(target, this.config.fetch),
+      resolveImageSource(source, this.config.fetch),
+    ]);
+
+    const targetBlob = new Blob([resolvedTarget.data], {
+      type: resolvedTarget.mimeType,
+    });
+    const sourceBlob = new Blob([resolvedSource.data], {
+      type: resolvedSource.mimeType,
+    });
+
     const app = new faceSwap(this.config.HuggingFaceToken);
-    const Target = await (await this.config.fetch(target)).blob();
-    const Source = await (await this.config.fetch(source)).blob();
-    const res = await app.changeFace(Target, Source);
+    const res = await app.changeFace(targetBlob, sourceBlob);
     this.log(res[0]);
     const blob = await base64ToBlob(res[0] as string);
-    const DcImage = await this.MJApi.UploadImageByBole(blob);
+    const DcImage = await this.MJApi.uploadImage(blob);
     const nonce = nextNonce();
     const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
     if (httpStatus !== 204) {
