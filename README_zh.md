@@ -13,6 +13,7 @@
 
 ## 最近更新
 
+- [统一图片输入（本地文件 / Buffer / Blob / URL）](#图片输入)
 - [换脸](https://github.com/erictik/midjourney-api/blob/main/example/faceswap.ts)
 - [支持 niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-api/blob/main/example/customzoom.ts)
@@ -196,6 +197,55 @@
    console.log(CustomZoomout);
    ```
 
+## 图片输入
+
+所有需要上传图片的能力（`Describe`、`FaceSwap`，以及共用的
+`MJApi.UploadImage` / `MJApi.UploadImages`）都接受同一套图片来源：
+
+| 输入                                    | 示例                                       |
+| --------------------------------------- | ------------------------------------------ |
+| 远程 URL                                | `"https://example.com/cat.png"`            |
+| 本地文件路径（Node.js）                 | `"./images/cat.png"`                       |
+| `data:` URI                             | `"data:image/png;base64,..."`              |
+| `Blob`                                  | `new Blob([bytes], { type: "image/png" })` |
+| `Buffer` / `Uint8Array` / `ArrayBuffer` | `await fs.promises.readFile("cat.png")`    |
+
+```typescript
+import { readFile } from "fs/promises";
+import { Midjourney } from "midjourney";
+
+const client = new Midjourney({
+  ServerId: <string>process.env.SERVER_ID,
+  ChannelId: <string>process.env.CHANNEL_ID,
+  SalaiToken: <string>process.env.SALAI_TOKEN,
+  Ws: true,
+});
+await client.Connect();
+
+// 本地文件
+const fromFile = await client.Describe("./images/cat.png");
+// Buffer
+const fromBuffer = await client.Describe(await readFile("./images/cat.png"));
+// 远程 URL（保持不变）
+const fromUrl = await client.Describe("https://example.com/cat.png");
+
+// 换脸：混合输入（本地文件 + URL）
+await client.FaceSwap("./images/target.png", "https://example.com/source.png");
+
+// 直接上传图片（所有图片能力共用的底层流程）
+await client.MJApi.UploadImage(await readFile("./images/cat.png"));
+// 一次上传多张，并校验数量
+await client.MJApi.UploadImages(["./images/a.png", "./images/b.png"], {
+  min: 2,
+  max: 5,
+});
+```
+
+> 旧入口 `DescribeByBlob(blob)` / `UploadImageByUri(url)` /
+> `UploadImageByBole(blob)` 仍然保留，内部已统一委托到新的图片处理流程。
+> 空输入、文件不存在、不支持的类型、图片数量不合法等情况会在发起 Discord
+> 请求之前就给出明确报错。
+
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
@@ -203,7 +253,7 @@
 - [x] `/fast ` and `/relax `
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-api/blob/main/example/prefer-remix.ts)
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-api/blob/main/example/variation-ws.ts)
-- [x] `/describe`
+- [x] [`/describe`](https://github.com/erictik/midjourney-api/blob/main/example/describe.ts)（URL / 本地文件 / Buffer / Blob）
 - [x] [`/shorten`](https://github.com/erictik/midjourney-api/blob/main/example/shorten.ts)
 - [x] `/settings` `reset`
 - [x] verify human

@@ -1,5 +1,6 @@
 import {
   DefaultMJConfig,
+  ImageInput,
   LoadingHandler,
   MJConfig,
   MJConfigParam,
@@ -12,6 +13,7 @@ import {
   nextNonce,
   random,
   base64ToBlob,
+  resolveImage,
 } from "./utils";
 import { WsMessage } from "./discord.ws";
 import { faceSwap } from "./face.swap";
@@ -155,21 +157,28 @@ export class Midjourney extends MidjourneyMessage {
     }
     return wsClient.waitContent("prefer-remix");
   }
-  async Describe(imgUri: string) {
-    const wsClient = await this.getWsClient();
-    const nonce = nextNonce();
-    const DcImage = await this.MJApi.UploadImageByUri(imgUri);
-    this.log(`Describe`, DcImage);
-    const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
-    if (httpStatus !== 204) {
-      throw new Error(`DescribeApi failed with status ${httpStatus}`);
-    }
-    return wsClient.waitDescribe(nonce);
+  /**
+   * Describe an image.
+   *
+   * Accepts any supported image source: a remote `http(s)` URL, a local file
+   * path, a `data:` URI, a `Blob`, a `Buffer`, a `Uint8Array` or an `ArrayBuffer`.
+   */
+  async Describe(image: ImageInput) {
+    return this.describeImage(image);
   }
+  /**
+   * Describe an image provided as a `Blob`.
+   *
+   * @deprecated prefer {@link Describe}, which now accepts Blobs directly (as
+   * well as URLs, local file paths and Buffers). Kept for backwards compatibility.
+   */
   async DescribeByBlob(blob: Blob) {
+    return this.describeImage(blob);
+  }
+  private async describeImage(image: ImageInput) {
     const wsClient = await this.getWsClient();
     const nonce = nextNonce();
-    const DcImage = await this.MJApi.UploadImageByBole(blob);
+    const DcImage = await this.MJApi.UploadImage(image);
     this.log(`Describe`, DcImage);
     const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
     if (httpStatus !== 204) {
@@ -378,21 +387,33 @@ export class Midjourney extends MidjourneyMessage {
     });
   }
 
-  async FaceSwap(target: string, source: string) {
+  /**
+   * Swap a face from `source` onto `target`, then describe the result.
+   *
+   * Both `target` and `source` accept any supported image source: a remote URL,
+   * a local file path, a `data:` URI, a `Blob`, a `Buffer`, a `Uint8Array` or an
+   * `ArrayBuffer`.
+   */
+  async FaceSwap(target: ImageInput, source: ImageInput) {
     const wsClient = await this.getWsClient();
     const app = new faceSwap(this.config.HuggingFaceToken);
-    const Target = await (await this.config.fetch(target)).blob();
-    const Source = await (await this.config.fetch(source)).blob();
+    const Target = await this.toBlob(target);
+    const Source = await this.toBlob(source);
     const res = await app.changeFace(Target, Source);
     this.log(res[0]);
     const blob = await base64ToBlob(res[0] as string);
-    const DcImage = await this.MJApi.UploadImageByBole(blob);
+    const DcImage = await this.MJApi.UploadImage(blob);
     const nonce = nextNonce();
     const httpStatus = await this.MJApi.DescribeApi(DcImage, nonce);
     if (httpStatus !== 204) {
       throw new Error(`DescribeApi failed with status ${httpStatus}`);
     }
     return wsClient.waitDescribe(nonce);
+  }
+
+  private async toBlob(input: ImageInput): Promise<Blob> {
+    const resolved = await resolveImage(input, this.config.fetch);
+    return new Blob([resolved.data], { type: resolved.mimeType });
   }
 
   Close() {

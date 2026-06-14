@@ -153,6 +153,8 @@ export const toRemixCustom = (customID: string) => {
   return convertedString;
 };
 
+export * from "./image.input";
+
 export async function base64ToBlob(base64Image: string): Promise<Blob> {
   // 移除 base64 图像头部信息
   const base64Data = base64Image.replace(

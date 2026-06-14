@@ -6,11 +6,13 @@
   "types": "libs/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx test/image.input.test.ts",
     "build": "tsc",
     "prettier": "prettier --write .",
     "prettier:check": "prettier --check .",
-    "example:imagine": "tsx ./examples/imagine-ws.ts"
+    "example:imagine": "tsx ./examples/imagine-ws.ts",
+    "example:describe": "tsx ./example/describe.ts",
+    "example:upload": "tsx ./example/upload-image.ts"
   },
   "files": [
     "libs/*",

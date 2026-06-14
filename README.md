@@ -13,6 +13,7 @@ English / [中文文档](README_zh.md)
 
 ## What's new
 
+- [unified image input (local file / Buffer / Blob / URL)](#image-inputs)
 - [face swap](https://github.com/erictik/midjourney-client/blob/main/example/faceswap.ts)
 - [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
@@ -221,7 +222,66 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+## Image inputs
 
+Every feature that uploads an image — `Describe`, `FaceSwap` and the shared
+`MJApi.UploadImage` / `MJApi.UploadImages` helpers — accepts the same set of
+image sources:
+
+| Input                                   | Example                                    |
+| --------------------------------------- | ------------------------------------------ |
+| remote URL                              | `"https://example.com/cat.png"`            |
+| local file path (Node.js)               | `"./images/cat.png"`                       |
+| `data:` URI                             | `"data:image/png;base64,..."`              |
+| `Blob`                                  | `new Blob([bytes], { type: "image/png" })` |
+| `Buffer` / `Uint8Array` / `ArrayBuffer` | `await fs.promises.readFile("cat.png")`    |
+
+```typescript
+import { readFile } from "fs/promises";
+import { Midjourney } from "midjourney";
+
+const client = new Midjourney({
+  ServerId: <string>process.env.SERVER_ID,
+  ChannelId: <string>process.env.CHANNEL_ID,
+  SalaiToken: <string>process.env.SALAI_TOKEN,
+  Ws: true,
+});
+await client.Connect();
+
+// describe a local file
+const fromFile = await client.Describe("./images/cat.png");
+
+// describe a Buffer
+const fromBuffer = await client.Describe(await readFile("./images/cat.png"));
+
+// describe a remote URL (unchanged)
+const fromUrl = await client.Describe("https://example.com/cat.png");
+
+// face swap with mixed inputs (local file + URL)
+const swapped = await client.FaceSwap(
+  "./images/target.png",
+  "https://example.com/source.png"
+);
+
+// upload images directly (the flow shared by every image feature)
+const image = await client.MJApi.UploadImage(
+  await readFile("./images/cat.png")
+);
+
+// or several at once, with up-front count validation
+const images = await client.MJApi.UploadImages(
+  ["./images/a.png", "./images/b.png"],
+  { min: 2, max: 5 }
+);
+```
+
+> `Describe(blob)` and the legacy `DescribeByBlob(blob)` /
+> `UploadImageByUri(url)` / `UploadImageByBole(blob)` entry points are still
+> available for backwards compatibility — they now delegate to the unified image
+> pipeline.
+
+Invalid inputs (empty input, missing file, unsupported type, wrong image count)
+fail fast with a clear error before any Discord request is made.
 
 ## route-map
 
@@ -230,7 +290,7 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 - [x] `/fast ` and `/relax `
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts)
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-client/blob/main/example/variation-ws.ts)
-- [x] `/describe`
+- [x] [`/describe`](https://github.com/erictik/midjourney-client/blob/main/example/describe.ts) (URL / local file / Buffer / Blob)
 - [x] [`/shorten`](https://github.com/erictik/midjourney-client/blob/main/example/shorten.ts)
 - [x] `/settings` `reset`
 - [x] verify human

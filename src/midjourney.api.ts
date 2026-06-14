@@ -2,15 +2,23 @@ import {
   CustomZoomModalSubmitID,
   DescribeModalSubmitID,
   DiscordImage,
+  ImageInput,
   MJConfig,
   ModalSubmitID,
   RemixModalSubmitID,
+  ResolvedImage,
   ShortenModalSubmitID,
   UploadParam,
   UploadSlot,
 } from "./interfaces";
 
-import { nextNonce, sleep } from "./utils";
+import {
+  nextNonce,
+  resolveImage,
+  resolveImages,
+  ResolveImagesOptions,
+  sleep,
+} from "./utils";
 import { Command } from "./command";
 import async from "async";
 
@@ -330,26 +338,55 @@ export class MidjourneyApi extends Command {
   }
 
   /**
+   * Resolve any supported image source and upload it to Discord.
    *
-   * @param fileUrl http file path
-   * @returns
+   * This is the single, shared entry point used by `Describe`, face swap and any
+   * other feature that needs an uploaded image. It accepts a remote URL, a local
+   * file path, a `data:` URI, a `Blob`, a `Buffer`, a `Uint8Array` or an
+   * `ArrayBuffer`.
+   *
+   * @param input the image source
+   * @returns the uploaded {@link DiscordImage}
    */
-  async UploadImageByUri(fileUrl: string) {
-    const response = await this.config.fetch(fileUrl);
-    const fileData = await response.arrayBuffer();
-    const mimeType = response.headers.get("content-type");
-    const filename = fileUrl.split("/").pop() || "image.png";
-    const file_size = fileData.byteLength;
-    if (!mimeType) {
-      throw new Error("Unknown mime type");
+  async UploadImage(input: ImageInput): Promise<DiscordImage> {
+    const resolved = await resolveImage(input, this.config.fetch);
+    return this.uploadResolvedImage(resolved);
+  }
+
+  /**
+   * Resolve and upload a list of image sources, validating the count up-front.
+   *
+   * @param inputs the image sources
+   * @param options count constraints (`min`/`max`)
+   */
+  async UploadImages(
+    inputs: ImageInput[],
+    options: Omit<ResolveImagesOptions, "fetchFn"> = {}
+  ): Promise<DiscordImage[]> {
+    const resolved = await resolveImages(inputs, {
+      ...options,
+      fetchFn: this.config.fetch,
+    });
+    const uploaded: DiscordImage[] = [];
+    for (const image of resolved) {
+      uploaded.push(await this.uploadResolvedImage(image));
     }
+    return uploaded;
+  }
+
+  /**
+   * Upload an already-normalized image to Discord and return its descriptor.
+   */
+  private async uploadResolvedImage(
+    image: ResolvedImage
+  ): Promise<DiscordImage> {
     const { attachments } = await this.attachments({
-      filename,
-      file_size,
+      filename: image.filename,
+      file_size: image.file_size,
       id: this.UpId++,
     });
     const UploadSlot = attachments[0];
-    await this.uploadImage(UploadSlot, fileData, mimeType);
+    await this.uploadImage(UploadSlot, image.data, image.mimeType);
     const resp: DiscordImage = {
       id: UploadSlot.id,
       filename: UploadSlot.upload_filename.split("/").pop() || "image.png",
@@ -358,26 +395,32 @@ export class MidjourneyApi extends Command {
     return resp;
   }
 
-  async UploadImageByBole(blob: Blob, filename = nextNonce() + ".png") {
-    const fileData = await blob.arrayBuffer();
-    const mimeType = blob.type;
-    const file_size = fileData.byteLength;
-    if (!mimeType) {
-      throw new Error("Unknown mime type");
+  /**
+   * Upload an image from an http(s) URL.
+   *
+   * @deprecated prefer {@link UploadImage}, which also accepts local file paths,
+   * Blobs and Buffers. Kept for backwards compatibility.
+   * @param fileUrl http file path
+   */
+  async UploadImageByUri(fileUrl: string): Promise<DiscordImage> {
+    return this.UploadImage(fileUrl);
+  }
+
+  /**
+   * Upload an image from a `Blob`.
+   *
+   * @deprecated prefer {@link UploadImage}, which also accepts URLs, local file
+   * paths and Buffers. Kept for backwards compatibility.
+   */
+  async UploadImageByBole(
+    blob: Blob,
+    filename?: string
+  ): Promise<DiscordImage> {
+    const resolved = await resolveImage(blob, this.config.fetch);
+    if (filename) {
+      resolved.filename = filename;
     }
-    const { attachments } = await this.attachments({
-      filename,
-      file_size,
-      id: this.UpId++,
-    });
-    const UploadSlot = attachments[0];
-    await this.uploadImage(UploadSlot, fileData, mimeType);
-    const resp: DiscordImage = {
-      id: UploadSlot.id,
-      filename: UploadSlot.upload_filename.split("/").pop() || "image.png",
-      upload_filename: UploadSlot.upload_filename,
-    };
-    return resp;
+    return this.uploadResolvedImage(resolved);
   }
 
   /**
@@ -411,7 +454,7 @@ export class MidjourneyApi extends Command {
 
   private async uploadImage(
     slot: UploadSlot,
-    data: ArrayBuffer,
+    data: Uint8Array | ArrayBuffer,
     contentType: string
   ): Promise<void> {
     const body = new Uint8Array(data);
