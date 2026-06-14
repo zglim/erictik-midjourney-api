@@ -3,6 +3,8 @@ import {
   LoadingHandler,
   MJConfig,
   MJConfigParam,
+  MJSettings,
+  MJSettingsTarget,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
 import { MidjourneyMessage } from "./discord.message";
@@ -12,6 +14,8 @@ import {
   nextNonce,
   random,
   base64ToBlob,
+  findSettingsOption,
+  isSettingEnabled,
 } from "./utils";
 import { WsMessage } from "./discord.ws";
 import { faceSwap } from "./face.swap";
@@ -46,11 +50,7 @@ export class Midjourney extends MidjourneyMessage {
     const settings = await this.Settings();
     if (settings) {
       // this.log(`settings:`, settings.content);
-      const remix = settings.options.find((o) => o.label === "Remix mode");
-      if (remix?.style == 3) {
-        this.config.Remix = true;
-        this.log(`Remix mode enabled`);
-      }
+      this.syncRemixConfig(settings);
     }
     return this;
   }
@@ -92,32 +92,91 @@ export class Midjourney extends MidjourneyMessage {
     return this.wsClient;
   }
 
+  /**
+   * Read capability: fetch the current `/settings` panel (`MJSettings`),
+   * including every toggle/option and its on/off state.
+   */
   async Settings() {
     const wsClient = await this.getWsClient();
     const nonce = nextNonce();
     const httpStatus = await this.MJApi.SettingsApi(nonce);
     if (httpStatus !== 204) {
-      throw new Error(`ImagineApi failed with status ${httpStatus}`);
+      throw new Error(`SettingsApi failed with status ${httpStatus}`);
     }
     return wsClient.waitSettings();
   }
-  async Reset() {
-    const settings = await this.Settings();
-    if (!settings) {
+
+  /**
+   * Write capability: click / toggle a single entry on the `/settings` panel by
+   * label, custom id, or an explicit {@link MJSettingsTarget}, instead of
+   * manually parsing `options` and calling `CustomApi`. Pass an existing
+   * `settings` snapshot to reuse it instead of re-fetching the panel. Returns
+   * the refreshed panel reflecting the new state.
+   */
+  async UpdateSetting(
+    target: string | MJSettingsTarget,
+    settings?: MJSettings
+  ) {
+    const current = settings ?? (await this.Settings());
+    if (!current) {
       throw new Error(`Settings not found`);
     }
-    const reset = settings.options.find((o) => o.label === "Reset Settings");
-    if (!reset) {
-      throw new Error(`Reset Settings not found`);
+    const option = findSettingsOption(current.options, target);
+    if (!option) {
+      throw new Error(
+        `Settings option not found: ${this.describeTarget(target)}`
+      );
     }
-    const httpstatus = await this.MJApi.CustomApi({
-      msgId: settings.id,
-      customId: reset.custom,
-      flags: settings.flags,
+    const httpStatus = await this.MJApi.CustomApi({
+      msgId: current.id,
+      customId: option.custom,
+      flags: current.flags,
     });
-    if (httpstatus !== 204) {
-      throw new Error(`Reset failed with status ${httpstatus}`);
+    if (httpStatus !== 204) {
+      throw new Error(`UpdateSetting failed with status ${httpStatus}`);
     }
+    return this.Settings();
+  }
+
+  /**
+   * Closed-loop capability: make sure a toggle style setting (e.g. "Remix mode")
+   * ends up `enabled`/disabled, reading its current state first and skipping the
+   * click when it is already correct. Returns the panel reflecting the final
+   * state.
+   */
+  async EnsureSetting(
+    target: string | MJSettingsTarget,
+    enabled: boolean,
+    settings?: MJSettings
+  ) {
+    const current = settings ?? (await this.Settings());
+    if (!current) {
+      throw new Error(`Settings not found`);
+    }
+    const option = findSettingsOption(current.options, target);
+    if (!option) {
+      throw new Error(
+        `Settings option not found: ${this.describeTarget(target)}`
+      );
+    }
+    if (isSettingEnabled(option) === enabled) {
+      // already in the desired state, avoid a useless toggle
+      return current;
+    }
+    return this.UpdateSetting(target, current);
+  }
+
+  private describeTarget(target: string | MJSettingsTarget) {
+    if (typeof target === "string") return target;
+    return target.label ?? target.custom ?? "";
+  }
+
+  /**
+   * Reset all settings to default. Delegates to the shared {@link UpdateSetting}
+   * flow by clicking the "Reset Settings" entry on the `/settings` panel.
+   */
+  async Reset() {
+    await this.UpdateSetting("Reset Settings");
   }
 
   async Info() {
@@ -146,14 +205,34 @@ export class Midjourney extends MidjourneyMessage {
     }
     return null;
   }
+  /**
+   * Toggle "Remix mode" through the shared {@link UpdateSetting} flow and keep
+   * `config.Remix` in sync. Use {@link SetRemix} when you need a specific state
+   * instead of a blind toggle.
+   */
   async SwitchRemix() {
-    const wsClient = await this.getWsClient();
-    const nonce = nextNonce();
-    const httpStatus = await this.MJApi.SwitchRemixApi(nonce);
-    if (httpStatus !== 204) {
-      throw new Error(`RelaxApi failed with status ${httpStatus}`);
+    const settings = await this.UpdateSetting("Remix mode");
+    return this.syncRemixConfig(settings);
+  }
+
+  /**
+   * Ensure "Remix mode" ends up `enabled`/disabled without toggling blindly,
+   * keeping `config.Remix` in sync. Builds on {@link EnsureSetting}.
+   */
+  async SetRemix(enabled: boolean) {
+    const settings = await this.EnsureSetting("Remix mode", enabled);
+    return this.syncRemixConfig(settings);
+  }
+
+  private syncRemixConfig(settings: MJSettings | null) {
+    if (settings) {
+      const remix = findSettingsOption(settings.options, "Remix mode");
+      if (remix) {
+        this.config.Remix = isSettingEnabled(remix);
+        this.log(`Remix mode ${this.config.Remix ? "enabled" : "disabled"}`);
+      }
     }
-    return wsClient.waitContent("prefer-remix");
+    return settings;
   }
   async Describe(imgUri: string) {
     const wsClient = await this.getWsClient();

@@ -6,7 +6,7 @@
   "types": "libs/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "tsx test/settings.ts",
     "build": "tsc",
     "prettier": "prettier --write .",
     "prettier:check": "prettier --check .",

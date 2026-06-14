@@ -196,16 +196,52 @@
    console.log(CustomZoomout);
    ```
 
+3. 设置与 Remix
+
+   设置相关能力分为 **读取**（`Settings()` 返回当前 `/settings` 面板，包含每个开关的开/关状态）
+   与 **写入**（`UpdateSetting` / `EnsureSetting` 通过 label、custom id 或明确的设置目标来切换某个设置，
+   无需再手动解析 `options` 并调用 `CustomApi`）。`Reset()`、`SwitchRemix()`、`SetRemix()` 都是基于
+   同一套流程的高层封装。需要 `Ws: true`。
+
+   ```typescript
+   import { Midjourney } from "midjourney";
+   const client = new Midjourney({
+     ServerId: <string>process.env.SERVER_ID,
+     ChannelId: <string>process.env.CHANNEL_ID,
+     SalaiToken: <string>process.env.SALAI_TOKEN,
+     Ws: true, //设置相关 api 必须开启
+   });
+   await client.Connect();
+
+   // 读取：查看当前设置面板
+   const settings = await client.Settings();
+   console.log(settings?.options.map((o) => o.label));
+
+   // 写入：按 label（或 { custom } / { label }）切换某个设置
+   await client.UpdateSetting("Niji version 5");
+
+   // 闭环：确保某个开关处于期望状态，已是该状态则跳过点击
+   await client.EnsureSetting("Remix mode", true);
+
+   // remix 封装（同时同步 config.Remix）
+   await client.SetRemix(true); // 确保开启 remix
+   await client.SwitchRemix(); // 盲切换
+
+   // 重置全部设置
+   await client.Reset();
+   client.Close();
+   ```
+
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
 - [x] `/info`
 - [x] `/fast ` and `/relax `
-- [x] [`/prefer remix`](https://github.com/erictik/midjourney-api/blob/main/example/prefer-remix.ts)
+- [x] [`/prefer remix`](https://github.com/erictik/midjourney-api/blob/main/example/prefer-remix.ts) `SwitchRemix` `SetRemix`
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-api/blob/main/example/variation-ws.ts)
 - [x] `/describe`
 - [x] [`/shorten`](https://github.com/erictik/midjourney-api/blob/main/example/shorten.ts)
-- [x] `/settings` `reset`
+- [x] [`/settings`](https://github.com/erictik/midjourney-api/blob/main/example/settings.ts) `UpdateSetting` `EnsureSetting` `reset`
 - [x] verify human
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)

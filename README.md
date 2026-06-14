@@ -221,18 +221,54 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+4. Settings & Remix
 
+   The settings API separates **read** (`Settings()` returns the current
+   `/settings` panel and the on/off state of every toggle) from **write**
+   (`UpdateSetting` / `EnsureSetting` change a setting by label, custom id, or an
+   explicit target instead of hand-parsing `options` and calling `CustomApi`).
+   `Reset()`, `SwitchRemix()` and `SetRemix()` are high level helpers built on the
+   same flow. `Ws: true` is required.
+
+   ```typescript
+   import { Midjourney } from "midjourney";
+   const client = new Midjourney({
+     ServerId: <string>process.env.SERVER_ID,
+     ChannelId: <string>process.env.CHANNEL_ID,
+     SalaiToken: <string>process.env.SALAI_TOKEN,
+     Ws: true, //required for the settings api
+   });
+   await client.Connect();
+
+   // read: inspect the current settings panel
+   const settings = await client.Settings();
+   console.log(settings?.options.map((o) => o.label));
+
+   // write: switch a setting by label (or { custom } / { label })
+   await client.UpdateSetting("Niji version 5");
+
+   // closed-loop: ensure a toggle state, skipping a useless click
+   await client.EnsureSetting("Remix mode", true);
+
+   // remix helpers (keep config.Remix in sync)
+   await client.SetRemix(true); // ensure remix on
+   await client.SwitchRemix(); // blind toggle
+
+   // reset everything to default
+   await client.Reset();
+   client.Close();
+   ```
 
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
 - [x] `/info`
 - [x] `/fast ` and `/relax `
-- [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts)
+- [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts) `SwitchRemix` `SetRemix`
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-client/blob/main/example/variation-ws.ts)
 - [x] `/describe`
 - [x] [`/shorten`](https://github.com/erictik/midjourney-client/blob/main/example/shorten.ts)
-- [x] `/settings` `reset`
+- [x] [`/settings`](https://github.com/erictik/midjourney-client/blob/main/example/settings.ts) `UpdateSetting` `EnsureSetting` `reset`
 - [x] verify human
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)

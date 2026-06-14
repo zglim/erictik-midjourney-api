@@ -1,5 +1,10 @@
 import { Snowyflake, Epoch } from "snowyflake";
-import { MJInfo, MJOptions } from "../interfaces";
+import {
+  MJInfo,
+  MJOptions,
+  MJSettingsTarget,
+  SettingsEnabledStyle,
+} from "../interfaces";
 
 export const sleep = async (ms: number): Promise<void> =>
   await new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,6 +49,40 @@ export const formatOptions = (components: any) => {
   }
   return data;
 };
+
+/**
+ * Find a single entry inside a `/settings` (or any options based) panel by its
+ * label, custom id, or an explicit {@link MJSettingsTarget}. A bare string is
+ * treated as a label. Throws when the target carries neither a label nor a
+ * custom id, and returns `undefined` when no matching option exists.
+ */
+export const findSettingsOption = (
+  options: MJOptions[] | undefined,
+  target: string | MJSettingsTarget
+): MJOptions | undefined => {
+  const query: MJSettingsTarget =
+    typeof target === "string" ? { label: target } : target;
+  if (!query.label && !query.custom) {
+    throw new Error("settings target requires a label or custom id");
+  }
+  if (!options) return undefined;
+  return options.find((option) => {
+    if (query.custom !== undefined && option.custom !== query.custom) {
+      return false;
+    }
+    if (query.label !== undefined && option.label !== query.label) {
+      return false;
+    }
+    return true;
+  });
+};
+
+/**
+ * Whether a toggle style setting option is currently enabled, i.e. rendered with
+ * the green "success" button style ({@link SettingsEnabledStyle}).
+ */
+export const isSettingEnabled = (option: MJOptions): boolean =>
+  option.style === SettingsEnabledStyle;
 
 export const formatInfo = (msg: string) => {
   let jsonResult: MJInfo = {

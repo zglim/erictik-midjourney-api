@@ -13,28 +13,34 @@ async function main() {
     ChannelId: <string>process.env.CHANNEL_ID,
     SalaiToken: <string>process.env.SALAI_TOKEN,
     Debug: true,
-    Ws: true, //Important 
+    Ws: true, //Important
   });
   await client.Connect();
-  const msg = await client.Settings();
-  console.log(msg);
-  if (!msg) {
+
+  // read capability: fetch the current /settings panel
+  const settings = await client.Settings();
+  if (!settings) {
+    client.Close();
     return;
   }
-  // //niji5
-  const niji5 = msg.options.filter((x) => {
-    return x.label === "Niji version 5";
-  })[0];
-  console.log(niji5);
-  // const httpstatus = await client.MJApi.CustomApi({
-  //   msgId: msg.id,
-  //   customId: niji5.custom,
-  //   flags: msg.flags,
-  // });
-  // console.log({ httpstatus });
-  // const setting = await client.Settings();
-  // console.log({ setting });
-  //reset settings
+  console.log(
+    "options:",
+    settings.options.map((o) => o.label)
+  );
+
+  // write capability: switch a specific setting by label using the settings
+  // management api, no need to dig into msg.options + MJApi.CustomApi manually.
+  const target = "Niji version 5";
+  const exists = settings.options.some((o) => o.label === target);
+  if (exists) {
+    const updated = await client.UpdateSetting(target, settings);
+    console.log(
+      "updated:",
+      updated?.options.map((o) => o.label)
+    );
+  } else {
+    console.log(`"${target}" is not available on this account, skipping.`);
+  }
 
   client.Close();
 }

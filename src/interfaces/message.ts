@@ -50,6 +50,26 @@ export interface MJSettings {
   flags: number;
   options: MJOptions[];
 }
+
+/**
+ * Discord button style used by Midjourney to render an *enabled* toggle in the
+ * `/settings` panel (a green / "success" button). A disabled toggle is rendered
+ * with the secondary (grey) style. Used to read whether a setting is currently on.
+ */
+export const SettingsEnabledStyle = 3;
+
+/**
+ * Identifies a single entry inside the `/settings` panel so it can be toggled
+ * without manually parsing `MJSettings.options`. Provide either the visible
+ * button `label` (e.g. "Remix mode") or the raw discord `custom` id. When both
+ * are given the option must match all provided fields.
+ */
+export interface MJSettingsTarget {
+  /** match by visible button label, e.g. "Remix mode" */
+  label?: string;
+  /** match by raw discord custom id */
+  custom?: string;
+}
 export interface MJDescribe {
   id: string;
   flags: number;

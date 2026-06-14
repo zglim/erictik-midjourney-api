@@ -2,7 +2,7 @@ import "dotenv/config";
 import { Midjourney } from "../src";
 /**
  *
- * a simple example of using the prefer remix api
+ * a simple example of using the remix settings api
  * ```
  * npx tsx example/prefer-remix.ts
  * ```
@@ -13,11 +13,19 @@ async function main() {
     ChannelId: <string>process.env.CHANNEL_ID,
     SalaiToken: <string>process.env.SALAI_TOKEN,
     Debug: true,
-    Ws: true, //enable ws is required for prefer remix
+    Ws: true, //enable ws is required for remix mode
   });
   await client.Connect();
-  const msg = await client.SwitchRemix();
-  console.log(msg);
+
+  // closed-loop: make sure remix mode is ON, skipping the click if it already is
+  const enabled = await client.SetRemix(true);
+  console.log("remix enabled:", client.config.Remix, enabled?.content);
+
+  // SwitchRemix still works as a blind toggle, now delegating to the shared
+  // settings flow and keeping config.Remix in sync.
+  await client.SwitchRemix();
+  console.log("remix after toggle:", client.config.Remix);
+
   client.Close();
 }
 main()
