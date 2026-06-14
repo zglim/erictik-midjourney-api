@@ -66,3 +66,13 @@ export interface MJShorten {
   options: MJOptions[];
   prompts: string[];
 }
+
+/**
+ * Input for the /blend command.
+ * `images` accepts 2-5 image sources — either remote URLs (string) or Blob objects.
+ * `dimensions` is an optional aspect-ratio hint such as "1:1", "16:9", "9:16", "4:3", "3:2", "2:3".
+ */
+export interface BlendInput {
+  images: Array<string | Blob>;
+  dimensions?: "1:1" | "16:9" | "9:16" | "4:3" | "3:2" | "2:3" | (string & {});
+}

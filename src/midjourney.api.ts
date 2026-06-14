@@ -434,6 +434,15 @@ export class MidjourneyApi extends Command {
     const payload = await this.describePayload(image, nonce);
     return this.safeIteractions(payload);
   }
+
+  async BlendApi(
+    images: DiscordImage[],
+    dimensions?: string,
+    nonce: string = nextNonce()
+  ) {
+    const payload = await this.blendPayload(images, dimensions, nonce);
+    return this.safeIteractions(payload);
+  }
   async upImageApi(image: DiscordImage, nonce?: string) {
     const { SalaiToken, DiscordBaseUrl, ChannelId, fetch } = this.config;
     const payload = {

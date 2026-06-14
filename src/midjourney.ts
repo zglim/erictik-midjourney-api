@@ -3,6 +3,8 @@ import {
   LoadingHandler,
   MJConfig,
   MJConfigParam,
+  BlendInput,
+  DiscordImage,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
 import { MidjourneyMessage } from "./discord.message";
@@ -176,6 +178,83 @@ export class Midjourney extends MidjourneyMessage {
       throw new Error(`DescribeApi failed with status ${httpStatus}`);
     }
     return wsClient.waitDescribe(nonce);
+  }
+
+  /**
+   * Internal: upload all images and call the `/blend` slash command.
+   */
+  private async blendInternal(
+    images: Array<string | Blob>,
+    dimensions?: string,
+    loading?: LoadingHandler
+  ) {
+    const wsClient = await this.getWsClient();
+
+    // --- validation ---
+    if (!Array.isArray(images) || images.length < 2) {
+      throw new Error("Blend requires at least 2 images");
+    }
+    if (images.length > 5) {
+      throw new Error("Blend supports at most 5 images");
+    }
+
+    // --- upload all images ---
+    const uploadedImages: DiscordImage[] = [];
+    for (let i = 0; i < images.length; i++) {
+      const img = images[i];
+      let dcImage: DiscordImage;
+      if (typeof img === "string") {
+        dcImage = await this.MJApi.UploadImageByUri(img);
+      } else if (img instanceof Blob) {
+        dcImage = await this.MJApi.UploadImageByBole(img);
+      } else {
+        throw new Error(
+          `Image at index ${i} must be a URL string or Blob, got ${typeof img}`
+        );
+      }
+      this.log(`Blend image[${i}] uploaded`, dcImage);
+      uploadedImages.push(dcImage);
+    }
+
+    const nonce = nextNonce();
+    const httpStatus = await this.MJApi.BlendApi(
+      uploadedImages,
+      dimensions,
+      nonce
+    );
+    if (httpStatus !== 204) {
+      throw new Error(`BlendApi failed with status ${httpStatus}`);
+    }
+    return wsClient.waitImageMessage({ nonce, loading });
+  }
+
+  /**
+   * Blend 2-5 images via the `/blend` slash command.
+   * Accepts a `BlendInput` with image URLs, Blobs, or a mix,
+   * plus an optional dimensions hint.
+   *
+   * @example
+   * ```ts
+   * const msg = await client.Blend({
+   *   images: ["https://example.com/a.png", "https://example.com/b.png"],
+   *   dimensions: "1:1",
+   * });
+   * ```
+   */
+  async Blend(input: BlendInput, loading?: LoadingHandler) {
+    return this.blendInternal(input.images, input.dimensions, loading);
+  }
+
+  /**
+   * Blend using an array of URL strings. Convenience wrapper around `Blend`.
+   * @deprecated Use `Blend({ images, dimensions })` instead.
+   */
+  async BlendByUri(
+    imageUrls: string[],
+    dimensions?: string,
+    loading?: LoadingHandler
+  ) {
+    return this.blendInternal(imageUrls, dimensions, loading);
   }
 
   async Shorten(prompt: string) {

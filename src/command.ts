@@ -180,6 +180,57 @@ export class Command {
     return this.data2Paylod(data, nonce);
   }
 
+  /**
+   * Build the Discord interaction payload for the `/blend` command.
+   * @param images  Already-uploaded Discord images (2-5).
+   * @param dimensions  Optional aspect-ratio hint (e.g. "1:1", "16:9").
+   * @param nonce  Optional nonce; one will be generated if omitted.
+   */
+  async blendPayload(
+    images: DiscordImage[],
+    dimensions?: string,
+    nonce?: string
+  ) {
+    // --- validation ---
+    if (!Array.isArray(images) || images.length < 2) {
+      throw new Error("Blend requires at least 2 images");
+    }
+    if (images.length > 5) {
+      throw new Error("Blend supports at most 5 images");
+    }
+    for (let i = 0; i < images.length; i++) {
+      if (!images[i] || !images[i].id) {
+        throw new Error(`Image at index ${i} is invalid or missing an id`);
+      }
+    }
+
+    // Build options: one ATTACHMENT (type 11) per image
+    const options: any[] = images.map((img, idx) => ({
+      type: 11,
+      name: `image${idx + 1}`,
+      value: img.id,
+    }));
+
+    // Optional dimensions parameter (string, type 3)
+    if (dimensions) {
+      options.push({
+        type: 3,
+        name: "dimensions",
+        value: dimensions,
+      });
+    }
+
+    // Build attachments array
+    const attachments = images.map((img) => ({
+      id: <string>img.id,
+      filename: img.filename,
+      uploaded_filename: img.upload_filename,
+    }));
+
+    const data = await this.commandData("blend", options, attachments);
+    return this.data2Paylod(data, nonce);
+  }
+
   protected async commandData(
     name: CommandName,
     options: any[] = [],
