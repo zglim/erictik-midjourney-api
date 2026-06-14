@@ -1,10 +1,14 @@
 import {
+  BlendDimensions,
+  BlendImage,
   DefaultMJConfig,
+  DiscordImage,
   LoadingHandler,
   MJConfig,
   MJConfigParam,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
+import { assertBlendImageCount } from "./command";
 import { MidjourneyMessage } from "./discord.message";
 import {
   toRemixCustom,
@@ -78,6 +82,66 @@ export class Midjourney extends MidjourneyMessage {
       return msg;
     }
   }
+
+  /**
+   * Blend multiple images together via the Midjourney `/blend` command.
+   *
+   * Mirrors the `Imagine` calling convention: pass an optional `loading`
+   * handler to receive in-progress updates, and the resolved value is the
+   * final {@link MJMessage} (or `null`). Requires websocket mode, exactly like
+   * `Describe`, because the result arrives as an ephemeral Discord message.
+   *
+   * Each entry in `images` is resolved through the existing upload helpers, so
+   * remote URLs and Blobs share one code path (see {@link BlendImage}).
+   */
+  async Blend({
+    images,
+    dimensions = BlendDimensions.Square,
+    loading,
+  }: {
+    images: BlendImage[];
+    dimensions?: BlendDimensions;
+    loading?: LoadingHandler;
+  }) {
+    const wsClient = await this.getWsClient();
+    assertBlendImageCount(images.length);
+    const dcImages: DiscordImage[] = [];
+    for (const image of images) {
+      dcImages.push(await this.uploadBlendImage(image));
+    }
+    const nonce = nextNonce();
+    this.log(`Blend`, dcImages, `dimensions`, dimensions, `nonce`, nonce);
+    const httpStatus = await this.MJApi.BlendApi({
+      blendImages: dcImages,
+      dimensions,
+      nonce,
+    });
+    if (httpStatus !== 204) {
+      throw new Error(`BlendApi failed with status ${httpStatus}`);
+    }
+    return wsClient.waitImageMessage({ nonce, loading });
+  }
+
+  /**
+   * Resolve a single {@link BlendImage} into an uploaded {@link DiscordImage},
+   * reusing the existing upload helpers. New input variants (e.g. local file
+   * paths) should be added here so blend never grows its own upload logic.
+   */
+  private async uploadBlendImage(image: BlendImage): Promise<DiscordImage> {
+    if (typeof image === "string") {
+      return this.MJApi.UploadImageByUri(image);
+    }
+    if ("uri" in image) {
+      return this.MJApi.UploadImageByUri(image.uri);
+    }
+    if ("blob" in image) {
+      return image.filename
+        ? this.MJApi.UploadImageByBole(image.blob, image.filename)
+        : this.MJApi.UploadImageByBole(image.blob);
+    }
+    throw new Error("Invalid blend image input");
+  }
+
   // check ws enabled && connect
   private async getWsClient() {
     if (!this.config.Ws) {

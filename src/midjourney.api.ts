@@ -1,4 +1,5 @@
 import {
+  BlendDimensions,
   CustomZoomModalSubmitID,
   DescribeModalSubmitID,
   DiscordImage,
@@ -79,6 +80,19 @@ export class MidjourneyApi extends Command {
 
   async ImagineApi(prompt: string, nonce: string = nextNonce()) {
     const payload = await this.imaginePayload(prompt, nonce);
+    return this.safeIteractions(payload);
+  }
+
+  async BlendApi({
+    blendImages,
+    dimensions = BlendDimensions.Square,
+    nonce = nextNonce(),
+  }: {
+    blendImages: DiscordImage[];
+    dimensions?: BlendDimensions;
+    nonce?: string;
+  }) {
+    const payload = await this.blendPayload(blendImages, dimensions, nonce);
     return this.safeIteractions(payload);
   }
 

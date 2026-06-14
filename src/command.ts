@@ -1,6 +1,28 @@
-import { DiscordImage, MJConfig } from "./interfaces";
+import { BlendDimensions, DiscordImage, MJConfig } from "./interfaces";
 import async from "async";
 import { sleep } from "./utils";
+
+export const BLEND_MIN_IMAGES = 2;
+export const BLEND_MAX_IMAGES = 5;
+
+/**
+ * Validate the number of images supplied to `/blend`.
+ * Centralised here so every layer (public `Blend`, `BlendApi`, `blendPayload`)
+ * shares the exact same rule instead of re-implementing it.
+ */
+export function assertBlendImageCount(count: number) {
+  if (count < BLEND_MIN_IMAGES) {
+    throw new Error(
+      `Blend requires at least ${BLEND_MIN_IMAGES} images, got ${count}`
+    );
+  }
+  if (count > BLEND_MAX_IMAGES) {
+    throw new Error(
+      `Blend supports at most ${BLEND_MAX_IMAGES} images, got ${count}`
+    );
+  }
+}
+
 export const Commands = [
   "ask",
   "blend",
@@ -177,6 +199,31 @@ export class Command {
         },
       ]
     );
+    return this.data2Paylod(data, nonce);
+  }
+
+  async blendPayload(
+    blendImages: DiscordImage[],
+    dimensions: BlendDimensions = BlendDimensions.Square,
+    nonce?: string
+  ) {
+    assertBlendImageCount(blendImages.length);
+    const options: any[] = blendImages.map((image, index) => ({
+      type: 11,
+      name: `image${index + 1}`,
+      value: index,
+    }));
+    options.push({
+      type: 3,
+      name: "dimensions",
+      value: `--ar ${dimensions}`,
+    });
+    const attachments = blendImages.map((image, index) => ({
+      id: `${index}`,
+      filename: image.filename,
+      uploaded_filename: image.upload_filename,
+    }));
+    const data = await this.commandData("blend", options, attachments);
     return this.data2Paylod(data, nonce);
   }
 
