@@ -6,7 +6,7 @@
   "types": "libs/index.d.ts",
   "source": "./src/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "build": "tsc",
     "prettier": "prettier --write .",
     "prettier:check": "prettier --check .",
@@ -36,10 +36,13 @@
   "homepage": "https://github.com/erictik/midjourney-client#readme",
   "devDependencies": {
     "@types/async": "^3.2.20",
+    "@types/jest": "^30.0.0",
     "@types/node": "^18.16.0",
     "@types/ws": "^8.5.4",
     "dotenv": "^16.0.3",
+    "jest": "^30.4.2",
     "prettier": "^2.8.8",
+    "ts-jest": "^29.4.11",
     "ts-node": "^10.9.1",
     "tsx": "^3.12.6",
     "typescript": "^5.0.4"

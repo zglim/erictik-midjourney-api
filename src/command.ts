@@ -155,6 +155,18 @@ export class Command {
     const data = await this.commandData("relax");
     return this.data2Paylod(data, nonce);
   }
+  async publicPayload(nonce?: string) {
+    const data = await this.commandData("public");
+    return this.data2Paylod(data, nonce);
+  }
+  async privatePayload(nonce?: string) {
+    const data = await this.commandData("private");
+    return this.data2Paylod(data, nonce);
+  }
+  async stealthPayload(nonce?: string) {
+    const data = await this.commandData("stealth");
+    return this.data2Paylod(data, nonce);
+  }
   async settingsPayload(nonce?: string) {
     const data = await this.commandData("settings");
     return this.data2Paylod(data, nonce);

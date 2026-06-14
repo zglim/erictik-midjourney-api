@@ -146,6 +146,76 @@ export class Midjourney extends MidjourneyMessage {
     }
     return null;
   }
+
+  /**
+   * Shared logic for visibility-mode switches (public / private / stealth).
+   * Sends the command, and when ws is enabled waits for the system
+   * confirmation message that the Discord bot emits after the switch.
+   */
+  private async switchVisibilityMode(
+    modeLabel: string,
+    apiCall: (nonce: string) => Promise<number>
+  ) {
+    // If ws is enabled, ensure the client is connected so we can listen for
+    // the confirmation event before we fire the request.
+    let wsClient: WsMessage | undefined;
+    if (this.config.Ws) {
+      wsClient = await this.getWsClient();
+    }
+
+    // Start listening for the confirmation *before* sending the request so
+    // we never miss the event.
+    const confirmationPromise = wsClient
+      ? wsClient.waitModeConfirmation()
+      : null;
+
+    const nonce = nextNonce();
+    const httpStatus = await apiCall(nonce);
+    if (httpStatus !== 204) {
+      throw new Error(
+        `${modeLabel} mode switch failed with status ${httpStatus}`
+      );
+    }
+
+    if (confirmationPromise) {
+      const confirmation = await confirmationPromise;
+      return confirmation;
+    }
+    return null;
+  }
+
+  async Public() {
+    return this.switchVisibilityMode("Public", (nonce) =>
+      this.MJApi.PublicApi(nonce)
+    );
+  }
+  async Private() {
+    return this.switchVisibilityMode("Private", (nonce) =>
+      this.MJApi.PrivateApi(nonce)
+    );
+  }
+  async Stealth() {
+    return this.switchVisibilityMode("Stealth", (nonce) =>
+      this.MJApi.StealthApi(nonce)
+    );
+  }
+
+  /**
+   * Verify the current visibility mode by calling Info().
+   * Useful after a mode switch to confirm the change took effect.
+   *
+   * @example
+   * ```ts
+   * await client.Private();
+   * const mode = await client.verifyVisibilityMode();
+   * // mode === "Private"
+   * ```
+   */
+  async verifyVisibilityMode(): Promise<string | undefined> {
+    const info = await this.Info();
+    return info?.visibilityMode;
+  }
+
   async SwitchRemix() {
     const wsClient = await this.getWsClient();
     const nonce = nextNonce();

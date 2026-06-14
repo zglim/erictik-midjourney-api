@@ -329,6 +329,21 @@ export class MidjourneyApi extends Command {
     return this.safeIteractions(payload);
   }
 
+  async PublicApi(nonce?: string) {
+    const payload = await this.publicPayload(nonce);
+    return this.safeIteractions(payload);
+  }
+
+  async PrivateApi(nonce?: string) {
+    const payload = await this.privatePayload(nonce);
+    return this.safeIteractions(payload);
+  }
+
+  async StealthApi(nonce?: string) {
+    const payload = await this.stealthPayload(nonce);
+    return this.safeIteractions(payload);
+  }
+
   /**
    *
    * @param fileUrl http file path

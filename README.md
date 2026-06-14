@@ -13,6 +13,7 @@ English / [中文文档](README_zh.md)
 
 ## What's new
 
+- [visibility mode switching](./example/visibility-mode.ts) (`/public` `/private` `/stealth`)
 - [face swap](https://github.com/erictik/midjourney-client/blob/main/example/faceswap.ts)
 - [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
@@ -221,6 +222,34 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+4. Switch visibility mode (`/public`, `/private`, `/stealth`)
+
+   ```typescript
+   import { Midjourney } from "midjourney";
+   const client = new Midjourney({
+     ServerId: <string>process.env.SERVER_ID,
+     ChannelId: <string>process.env.CHANNEL_ID,
+     SalaiToken: <string>process.env.SALAI_TOKEN,
+     Debug: true,
+     Ws: true,
+   });
+   await client.Connect();
+
+   // Switch to private mode — in ws mode, waits for the system confirmation
+   await client.Private();
+
+   // Verify the mode change via Info()
+   const info = await client.Info();
+   console.log("Visibility Mode:", info?.visibilityMode);
+   // Or use the convenience helper:
+   const mode = await client.verifyVisibilityMode();
+   console.log("Current mode:", mode);
+
+   // Other modes
+   await client.Public();
+   await client.Stealth();
+   ```
+
 
 
 ## route-map
@@ -228,6 +257,7 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
 - [x] `/info`
 - [x] `/fast ` and `/relax `
+- [x] `/public` `/private` `/stealth` — visibility mode switching ([example](./example/visibility-mode.ts))
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts)
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-client/blob/main/example/variation-ws.ts)
 - [x] `/describe`

@@ -225,6 +225,11 @@ export class WsMessage {
             this.emit("prefer-remix", content);
           }
           break;
+        case "public":
+        case "private":
+        case "stealth":
+          this.emit("visibility-mode", { mode: name, content });
+          break;
         case "shorten":
           const shorten: MJShorten = {
             description: embeds?.[0]?.description,
@@ -705,5 +710,27 @@ export class WsMessage {
         });
       });
     });
+  }
+  async waitModeConfirmation(timeout = 10000) {
+    return new Promise<{ mode: string; content: string } | null>(
+      (resolve) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true;
+            this.remove("visibility-mode", handler);
+            resolve(null);
+          }
+        }, timeout);
+        const handler = (data: { mode: string; content: string }) => {
+          if (!settled) {
+            settled = true;
+            clearTimeout(timer);
+            resolve(data);
+          }
+        };
+        this.once("visibility-mode", handler);
+      }
+    );
   }
 }
