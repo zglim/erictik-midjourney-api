@@ -5,6 +5,7 @@ import {
   MJConfigParam,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
+import { VisibilityEvent, VisibilityMode } from "./command";
 import { MidjourneyMessage } from "./discord.message";
 import {
   toRemixCustom,
@@ -145,6 +146,42 @@ export class Midjourney extends MidjourneyMessage {
       throw new Error(`RelaxApi failed with status ${httpStatus}`);
     }
     return null;
+  }
+  /**
+   * shared visibility-mode switch used by Public/Private/Stealth.
+   * keeps http error handling and the optional ws confirmation wait in one place.
+   * - ws mode: resolves with the bot's confirmation message (e.g. "Stealth mode turned on!")
+   * - non-ws mode: resolves with null once the http request is accepted (204)
+   */
+  private async switchMode(mode: VisibilityMode) {
+    // attach the ws listener before firing so we never miss the confirmation
+    const wsClient = this.config.Ws ? await this.getWsClient() : undefined;
+    const nonce = nextNonce();
+    const httpStatus = await this.MJApi.ModeApi(mode, nonce);
+    if (httpStatus !== 204) {
+      throw new Error(`${mode} mode failed with status ${httpStatus}`);
+    }
+    if (wsClient) {
+      return wsClient.waitContent(VisibilityEvent);
+    }
+    return null;
+  }
+  async Public() {
+    return this.switchMode("public");
+  }
+  async Private() {
+    return this.switchMode("private");
+  }
+  async Stealth() {
+    return this.switchMode("stealth");
+  }
+  /**
+   * read the current visibility mode via /info, so callers can verify that a
+   * Public()/Private()/Stealth() switch actually took effect. Requires Ws.
+   */
+  async Visibility() {
+    const info = await this.Info();
+    return info?.visibilityMode ?? null;
   }
   async SwitchRemix() {
     const wsClient = await this.getWsClient();

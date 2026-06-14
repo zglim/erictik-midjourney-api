@@ -11,7 +11,7 @@ import {
 } from "./interfaces";
 
 import { nextNonce, sleep } from "./utils";
-import { Command } from "./command";
+import { Command, VisibilityMode } from "./command";
 import async from "async";
 
 export class MidjourneyApi extends Command {
@@ -326,6 +326,15 @@ export class MidjourneyApi extends Command {
 
   async RelaxApi(nonce?: string) {
     const payload = await this.relaxPayload(nonce);
+    return this.safeIteractions(payload);
+  }
+
+  /**
+   * switch generation visibility (public / private / stealth).
+   * a single entry point shared by all three modes so the http handling lives in one place.
+   */
+  async ModeApi(mode: VisibilityMode, nonce?: string) {
+    const payload = await this.modePayload(mode, nonce);
     return this.safeIteractions(payload);
   }
 

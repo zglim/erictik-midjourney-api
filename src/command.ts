@@ -20,6 +20,12 @@ export const Commands = [
   "subscribe",
 ] as const;
 export type CommandName = (typeof Commands)[number];
+
+/** generation visibility modes that can be toggled with a single slash command */
+export const VisibilityModes = ["public", "private", "stealth"] as const;
+export type VisibilityMode = (typeof VisibilityModes)[number];
+/** ws event name used to relay the bot's visibility-switch confirmation message */
+export const VisibilityEvent = "visibility";
 function getCommandName(name: string): CommandName | undefined {
   for (const command of Commands) {
     if (command === name) {
@@ -153,6 +159,14 @@ export class Command {
   }
   async relaxPayload(nonce?: string) {
     const data = await this.commandData("relax");
+    return this.data2Paylod(data, nonce);
+  }
+  /**
+   * shared payload builder for the public / private / stealth slash commands.
+   * keeps the three visibility modes from being copy-pasted into separate methods.
+   */
+  async modePayload(mode: VisibilityMode, nonce?: string) {
+    const data = await this.commandData(mode);
     return this.data2Paylod(data, nonce);
   }
   async settingsPayload(nonce?: string) {

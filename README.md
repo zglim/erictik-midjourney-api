@@ -13,6 +13,7 @@ English / [中文文档](README_zh.md)
 
 ## What's new
 
+- [stealth / public / private mode](https://github.com/erictik/midjourney-client/blob/main/example/stealth.ts)
 - [face swap](https://github.com/erictik/midjourney-client/blob/main/example/faceswap.ts)
 - [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-client/blob/main/example/customzoom.ts)
@@ -221,13 +222,32 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
    console.log(CustomZoomout);
    ```
 
+## Visibility mode
 
+Switch generation visibility the same way you use `Fast` / `Relax`, then verify the change with `Visibility()` (or `Info()`):
+
+```typescript
+import { Midjourney } from "midjourney";
+const client = new Midjourney({
+  ServerId: <string>process.env.SERVER_ID,
+  ChannelId: <string>process.env.CHANNEL_ID,
+  SalaiToken: <string>process.env.SALAI_TOKEN,
+  Ws: true, // ws is required to receive the confirmation message
+});
+await client.Connect();
+console.log("before:", await client.Visibility());
+// in ws mode this resolves with the bot's confirmation, e.g. "Stealth mode turned on!"
+await client.Stealth(); // or client.Public() / client.Private()
+console.log("after:", await client.Visibility());
+client.Close();
+```
 
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
 - [x] `/info`
 - [x] `/fast ` and `/relax `
+- [x] [`/public` `/private` `/stealth`](https://github.com/erictik/midjourney-client/blob/main/example/stealth.ts)
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-client/blob/main/example/prefer-remix.ts)
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-client/blob/main/example/variation-ws.ts)
 - [x] `/describe`

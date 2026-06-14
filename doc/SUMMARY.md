@@ -17,6 +17,7 @@
   * [info](getting-started/api-reference/info.md)
   * [fast](getting-started/api-reference/fast.md)
   * [relax](getting-started/api-reference/relax.md)
+  * [stealth](getting-started/api-reference/stealth.md)
   * [setting](getting-started/api-reference/setting.md)
   * [reset](getting-started/api-reference/reset.md)
 * [Example](getting-started/example/README.md)

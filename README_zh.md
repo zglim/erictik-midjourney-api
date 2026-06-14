@@ -13,6 +13,7 @@
 
 ## 最近更新
 
+- [隐私模式 stealth / public / private](https://github.com/erictik/midjourney-api/blob/main/example/stealth.ts)
 - [换脸](https://github.com/erictik/midjourney-api/blob/main/example/faceswap.ts)
 - [支持 niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
 - [custom zoom](https://github.com/erictik/midjourney-api/blob/main/example/customzoom.ts)
@@ -196,11 +197,32 @@
    console.log(CustomZoomout);
    ```
 
+## 切换可见性模式
+
+像使用 `Fast` / `Relax` 一样切换生成的可见性，然后用 `Visibility()`（或 `Info()`）确认是否生效：
+
+```typescript
+import { Midjourney } from "midjourney";
+const client = new Midjourney({
+  ServerId: <string>process.env.SERVER_ID,
+  ChannelId: <string>process.env.CHANNEL_ID,
+  SalaiToken: <string>process.env.SALAI_TOKEN,
+  Ws: true, // 开启 ws 才能收到机器人的确认消息
+});
+await client.Connect();
+console.log("before:", await client.Visibility());
+// ws 模式下会返回机器人的确认消息，例如 "Stealth mode turned on!"
+await client.Stealth(); // 或 client.Public() / client.Private()
+console.log("after:", await client.Visibility());
+client.Close();
+```
+
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
 - [x] `/info`
 - [x] `/fast ` and `/relax `
+- [x] [`/public` `/private` `/stealth`](https://github.com/erictik/midjourney-api/blob/main/example/stealth.ts)
 - [x] [`/prefer remix`](https://github.com/erictik/midjourney-api/blob/main/example/prefer-remix.ts)
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-api/blob/main/example/variation-ws.ts)
 - [x] `/describe`

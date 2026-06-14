@@ -12,6 +12,7 @@ import {
   MJDescribe,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
+import { VisibilityEvent } from "./command";
 import {
   content2progress,
   content2prompt,
@@ -223,6 +224,13 @@ export class WsMessage {
         case "prefer remix":
           if (content != "") {
             this.emit("prefer-remix", content);
+          }
+          break;
+        case "public":
+        case "private":
+        case "stealth":
+          if (content != "") {
+            this.emit(VisibilityEvent, content);
           }
           break;
         case "shorten":
