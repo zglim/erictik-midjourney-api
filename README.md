@@ -223,6 +223,32 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 
 
 
+## Settings Management
+
+The SDK provides a unified settings management API for reading and
+updating Midjourney settings.
+
+```typescript
+// Read current settings
+const settings = await client.Settings();
+
+// Check if a setting is active
+const remix = client.findSettingOption(settings, "Remix mode");
+const isActive = remix ? client.isSettingActive(remix) : false;
+
+// Update a setting by label (state-aware — skips if already in target state)
+await client.updateSetting({ label: "Niji version 5", targetState: true });
+
+// Enable Remix mode (no-op if already enabled, auto-updates config.Remix)
+await client.ensureRemixMode(true);
+
+// Reset all settings
+await client.Reset();
+```
+
+See [Settings API Reference](doc/getting-started/api-reference/setting.md)
+for full documentation.
+
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
@@ -232,7 +258,7 @@ To run the included example, you must have [Node.js](https://nodejs.org/en/) ins
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-client/blob/main/example/variation-ws.ts)
 - [x] `/describe`
 - [x] [`/shorten`](https://github.com/erictik/midjourney-client/blob/main/example/shorten.ts)
-- [x] `/settings` `reset`
+- [x] [`/settings` `reset`](https://github.com/erictik/midjourney-client/blob/main/example/settings.ts) `updateSetting` `ensureRemixMode`
 - [x] verify human
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-client/blob/main/example/imagine-niji.ts)

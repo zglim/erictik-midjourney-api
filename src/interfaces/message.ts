@@ -50,6 +50,32 @@ export interface MJSettings {
   flags: number;
   options: MJOptions[];
 }
+
+/**
+ * Discord button style constants.
+ * 1 = primary (blue), 2 = secondary (gray),
+ * 3 = success/active (green), 4 = danger (red)
+ */
+export const ButtonStyle = {
+  Primary: 1,
+  Secondary: 2,
+  Success: 3,
+  Danger: 4,
+} as const;
+
+/**
+ * Result returned after updating a setting.
+ */
+export interface MJSettingUpdateResult {
+  /** The label of the setting that was targeted. */
+  label: string;
+  /** Whether the setting was active before the operation. */
+  wasActive: boolean;
+  /** Whether the setting is active after the operation. */
+  isActive: boolean;
+  /** Whether the button was actually clicked (false if already in target state and not forced). */
+  toggled: boolean;
+}
 export interface MJDescribe {
   id: string;
   flags: number;

@@ -3,6 +3,10 @@ import {
   LoadingHandler,
   MJConfig,
   MJConfigParam,
+  MJOptions,
+  MJSettingUpdateResult,
+  MJSettings,
+  ButtonStyle,
 } from "./interfaces";
 import { MidjourneyApi } from "./midjourney.api";
 import { MidjourneyMessage } from "./discord.message";
@@ -45,9 +49,9 @@ export class Midjourney extends MidjourneyMessage {
     await this.Connect();
     const settings = await this.Settings();
     if (settings) {
-      // this.log(`settings:`, settings.content);
-      const remix = settings.options.find((o) => o.label === "Remix mode");
-      if (remix?.style == 3) {
+      // Use the new helper to detect remix state
+      const remix = this.findSettingOption(settings, "Remix mode");
+      if (remix && this.isSettingActive(remix)) {
         this.config.Remix = true;
         this.log(`Remix mode enabled`);
       }
@@ -97,27 +101,219 @@ export class Midjourney extends MidjourneyMessage {
     const nonce = nextNonce();
     const httpStatus = await this.MJApi.SettingsApi(nonce);
     if (httpStatus !== 204) {
-      throw new Error(`ImagineApi failed with status ${httpStatus}`);
+      throw new Error(`SettingsApi failed with status ${httpStatus}`);
     }
     return wsClient.waitSettings();
   }
+
+  // ========== Settings Management API ==========
+
+  /**
+   * Check whether a setting option is currently active (pressed/on).
+   * Discord uses button style 3 (success/green) for the active setting.
+   */
+  isSettingActive(option: MJOptions): boolean {
+    return option.style === ButtonStyle.Success;
+  }
+
+  /**
+   * Find a setting option by its label (exact match).
+   * @param settings  The settings message returned by Settings().
+   * @param label     The label to search for (e.g. "Remix mode", "Niji version 5").
+   * @returns         The matching MJOptions, or undefined if not found.
+   */
+  findSettingOption(
+    settings: MJSettings,
+    label: string
+  ): MJOptions | undefined {
+    return settings.options.find((o) => o.label === label);
+  }
+
+  /**
+   * Find a setting option by its custom_id.
+   * @param settings   The settings message returned by Settings().
+   * @param customId   The custom_id to match against.
+   * @returns          The matching MJOptions, or undefined if not found.
+   */
+  findSettingByCustomId(
+    settings: MJSettings,
+    customId: string
+  ): MJOptions | undefined {
+    return settings.options.find((o) => o.custom === customId);
+  }
+
+  /**
+   * Click a setting button by its custom_id on the settings message.
+   * This is the low-level primitive that all high-level setting methods
+   * delegate to.
+   */
+  private async clickSettingButton(
+    settings: MJSettings,
+    customId: string
+  ): Promise<number> {
+    return this.MJApi.CustomApi({
+      msgId: settings.id,
+      customId,
+      flags: settings.flags,
+    });
+  }
+
+  /**
+   * Ensure a specific setting is in the desired state (active or inactive).
+   *
+   * This is the core settings-management method. It:
+   * 1. Fetches current settings.
+   * 2. Locates the target setting by `label` (or `customId`).
+   * 3. Checks whether the setting is already in the desired state.
+   * 4. If not (or if `force` is true), clicks the button to toggle it.
+   * 5. Returns a result describing what happened.
+   *
+   * @param params.label       The label of the setting to target (e.g. "Remix mode").
+   * @param params.customId    Alternatively, target by custom_id directly.
+   * @param params.targetState Desired state: true = active, false = inactive.
+   *                           If omitted, the button is clicked unconditionally (toggle).
+   * @param params.force       If true, click even if already in target state. Default false.
+   * @returns MJSettingUpdateResult describing the operation outcome.
+   *
+   * @example
+   * ```ts
+   * // Enable Remix mode (skip if already enabled)
+   * await client.updateSetting({ label: "Remix mode", targetState: true });
+   *
+   * // Force-toggle Niji version 5 regardless of current state
+   * await client.updateSetting({ label: "Niji version 5", force: true });
+   * ```
+   */
+  async updateSetting(params: {
+    label?: string;
+    customId?: string;
+    targetState?: boolean;
+    force?: boolean;
+  }): Promise<MJSettingUpdateResult> {
+    const { label, customId, targetState, force } = params;
+    if (!label && !customId) {
+      throw new Error(
+        "updateSetting: at least one of `label` or `customId` is required"
+      );
+    }
+
+    const settings = await this.Settings();
+    if (!settings) {
+      throw new Error("Settings not found");
+    }
+
+    // Find the target option
+    const option = label
+      ? this.findSettingOption(settings, label)
+      : this.findSettingByCustomId(settings, customId!);
+
+    if (!option) {
+      const searchDesc = label ? `label "${label}"` : `customId "${customId}"`;
+      throw new Error(`Setting not found: ${searchDesc}`);
+    }
+
+    const wasActive = this.isSettingActive(option);
+
+    // If targetState is specified and already matches, skip unless forced
+    if (targetState !== undefined && !force) {
+      if (wasActive === targetState) {
+        return {
+          label: option.label,
+          wasActive,
+          isActive: wasActive,
+          toggled: false,
+        };
+      }
+    }
+
+    // Click the button
+    const httpStatus = await this.clickSettingButton(settings, option.custom);
+    if (httpStatus !== 204) {
+      throw new Error(
+        `updateSetting: click failed with status ${httpStatus} for "${option.label}"`
+      );
+    }
+
+    // After clicking a toggle, the state flips
+    const isActive = targetState !== undefined ? targetState : !wasActive;
+
+    return {
+      label: option.label,
+      wasActive,
+      isActive,
+      toggled: true,
+    };
+  }
+
+  /**
+   * Ensure Remix mode is in the desired state.
+   *
+   * Unlike the raw SwitchRemix() (which blindly toggles), this method
+   * checks the current Remix state first and only acts if needed.
+   * It also updates `config.Remix` so that subsequent Variation calls
+   * work correctly.
+   *
+   * @param enabled  true to enable Remix, false to disable. Default true.
+   * @returns MJSettingUpdateResult describing the operation outcome.
+   *
+   * @example
+   * ```ts
+   * // Enable remix (no-op if already on)
+   * await client.ensureRemixMode(true);
+   *
+   * // Disable remix
+   * await client.ensureRemixMode(false);
+   * ```
+   */
+  async ensureRemixMode(
+    enabled: boolean = true
+  ): Promise<MJSettingUpdateResult> {
+    const result = await this.updateSetting({
+      label: "Remix mode",
+      targetState: enabled,
+    });
+    // Sync config.Remix with the new state
+    this.config.Remix = result.isActive;
+    return result;
+  }
+
+  // ========== Legacy high-level methods (now delegated to updateSetting) ==========
+
+  /**
+   * Reset all Midjourney settings to defaults.
+   * Delegates to the unified updateSetting flow internally.
+   */
   async Reset() {
     const settings = await this.Settings();
     if (!settings) {
-      throw new Error(`Settings not found`);
+      throw new Error("Settings not found");
     }
-    const reset = settings.options.find((o) => o.label === "Reset Settings");
+    const reset = this.findSettingOption(settings, "Reset Settings");
     if (!reset) {
-      throw new Error(`Reset Settings not found`);
+      throw new Error("Reset Settings not found");
     }
-    const httpstatus = await this.MJApi.CustomApi({
-      msgId: settings.id,
-      customId: reset.custom,
-      flags: settings.flags,
-    });
+    const httpstatus = await this.clickSettingButton(settings, reset.custom);
     if (httpstatus !== 204) {
       throw new Error(`Reset failed with status ${httpstatus}`);
     }
+  }
+
+  /**
+   * Toggle the Remix preference via the /prefer remix slash command.
+   *
+   * NOTE: This is a raw toggle — it blindly flips the state.
+   * For state-aware control, use `ensureRemixMode(enabled)` instead.
+   *
+   * @deprecated Use `ensureRemixMode()` for state-aware remix control.
+   */
+  async SwitchRemix() {
+    const wsClient = await this.getWsClient();
+    const nonce = nextNonce();
+    const httpStatus = await this.MJApi.SwitchRemixApi(nonce);
+    if (httpStatus !== 204) {
+      throw new Error(`SwitchRemixApi failed with status ${httpStatus}`);
+    }
+    return wsClient.waitContent("prefer-remix");
   }
 
   async Info() {
@@ -146,15 +342,7 @@ export class Midjourney extends MidjourneyMessage {
     }
     return null;
   }
-  async SwitchRemix() {
-    const wsClient = await this.getWsClient();
-    const nonce = nextNonce();
-    const httpStatus = await this.MJApi.SwitchRemixApi(nonce);
-    if (httpStatus !== 204) {
-      throw new Error(`RelaxApi failed with status ${httpStatus}`);
-    }
-    return wsClient.waitContent("prefer-remix");
-  }
+
   async Describe(imgUri: string) {
     const wsClient = await this.getWsClient();
     const nonce = nextNonce();

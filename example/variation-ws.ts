@@ -15,7 +15,11 @@ async function main() {
     Debug: true,
     Ws: true, //enable ws is required for remix mode
   });
-  await client.init(); //init auto enable remix mode
+  await client.Connect();
+  // Use the new settings API to ensure Remix mode is enabled
+  // (this replaces the old init() approach which blindly reads settings)
+  await client.ensureRemixMode(true);
+  console.log("Remix mode:", client.config.Remix); // true
   const prompt =
     "48 year old woman with auburn hair plays video games on a tablet in her bedroom and is a chemist. Engaged. Happy. Evening. Silver blue walls in room. In the style of anime. does not exceed 10 MB.";
   const Imagine = await client.Imagine(

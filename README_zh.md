@@ -196,6 +196,30 @@
    console.log(CustomZoomout);
    ```
 
+## 设置管理
+
+SDK 提供了统一的设置管理 API，支持读取和更新 Midjourney 设置。
+
+```typescript
+// 读取当前设置
+const settings = await client.Settings();
+
+// 检查某个设置是否处于激活状态
+const remix = client.findSettingOption(settings, "Remix mode");
+const isActive = remix ? client.isSettingActive(remix) : false;
+
+// 按 label 切换设置（自动判断状态，如果已经是目标状态则跳过）
+await client.updateSetting({ label: "Niji version 5", targetState: true });
+
+// 启用 Remix 模式（如果已启用则不操作，同时自动更新 config.Remix）
+await client.ensureRemixMode(true);
+
+// 重置所有设置
+await client.Reset();
+```
+
+详细文档参见 [Settings API Reference](doc/getting-started/api-reference/setting.md)。
+
 ## route-map
 
 - [x] `/imagine` `variation` `upscale` `reroll` `blend` `zoomout` `vary`
@@ -205,7 +229,7 @@
 - [x] [`variation (remix mode)`](https://github.com/erictik/midjourney-api/blob/main/example/variation-ws.ts)
 - [x] `/describe`
 - [x] [`/shorten`](https://github.com/erictik/midjourney-api/blob/main/example/shorten.ts)
-- [x] `/settings` `reset`
+- [x] [`/settings` `reset`](https://github.com/erictik/midjourney-api/blob/main/example/settings.ts) `updateSetting` `ensureRemixMode`
 - [x] verify human
 - [x] [proxy](https://github.com/erictik/midjourney-discord/blob/main/examples/proxy.ts)
 - [x] [niji bot](https://github.com/erictik/midjourney-api/blob/main/example/imagine-niji.ts)
